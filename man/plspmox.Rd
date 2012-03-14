@@ -28,7 +28,7 @@
   Gaston Sanchez
 }
 \seealso{
-  \code{\link{plspm}}, \code{\link{pathmox}}, \code{\link{techmox}}
+  See Also as \code{\link{plspm}}
 }
 \examples{
   \dontrun{

@@ -1,0 +1,10 @@
+exportPattern("^[^\\.]")
+
+S3method(print, bootnodes)
+S3method(print, treemox)
+S3method(print, treemox.pls)
+S3method(plot, bootnodes)
+S3method(plot, treemox)
+S3method(plot, treemox.pls)
+
+import(plspm)

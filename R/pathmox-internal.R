@@ -1,3 +1,186 @@
+.pls.loads <-
+function(X, Y.lvs, blocks)
+{
+    lvs <- length(blocks)
+    mvs <- ncol(X)
+    blocklist <- as.list(1:lvs)
+    for (j in 1:lvs)
+         blocklist[[j]] <- rep(j,blocks[j])
+    blocklist <- unlist(blocklist)
+    loads <- rep(NA, mvs)
+    comu <- rep(NA, mvs)
+    for (j in 1:lvs)
+        loads[blocklist==j] <- cor(X[,blocklist==j], Y.lvs[,j])
+    comu <- loads^2
+    names(loads) <- colnames(X)  
+    names(comu) <- colnames(X)
+    res.loads <- list(loads, comu)
+    return(res.loads)
+}
+
+.pls.paths <-
+function(IDM, Y.lvs, plsr)
+{
+    lvs.names <- colnames(IDM)
+    endo = rowSums(IDM)
+    endo[endo!=0] <- 1  # vector indicating endogenous LVs
+    innmod <- as.list(1:sum(endo))
+    Path <- IDM
+    residuals <- as.list(1:sum(endo))
+    R2 <- rep(0,nrow(IDM))
+    for (aux in 1:sum(endo)) 
+    {
+        k1 <- which(endo==1)[aux]    # index for endo LV
+        k2 <- which(IDM[k1,]==1)     # index for indep LVs
+        if (length(k2)>1 & plsr) {               
+            path.lm <- .plsr1(Y.lvs[,k2], Y.lvs[,k1], nc=2)
+            Path[k1,k2] <- path.lm$coeffs
+            residuals[[aux]] <- path.lm$resid
+            R2[k1] <- path.lm$R2[1]
+            inn.val <- c(path.lm$R2[1], path.lm$cte, path.lm$coeffs)
+            inn.lab <- c("R2", "Intercept", paste(rep("path_",length(k2)),names(k2),sep=""))
+            names(inn.val) <- NULL
+            innmod[[aux]] <- data.frame(concept=inn.lab, value=round(inn.val,4))
+        }
+        if (length(k2)==1 | !plsr) {
+            path.lm <- summary(lm(Y.lvs[,k1] ~ Y.lvs[,k2]))
+            Path[k1,k2] <- path.lm$coef[-1,1]
+            residuals[[aux]] <- path.lm$residuals  
+            R2[k1] <- path.lm$r.squared
+            inn.val <- c(path.lm$r.squared, path.lm$coef[,1])
+            inn.lab <- c("R2", "Intercept", paste(rep("path_",length(k2)),names(k2),sep=""))
+            names(inn.val) <- NULL
+            innmod[[aux]] <- data.frame(concept=inn.lab, value=round(inn.val,4))
+        }
+    }
+    names(innmod) <- lvs.names[endo!=0]  
+    names(R2) <- lvs.names
+    res.paths <- list(innmod, Path, R2, residuals)
+    return(res.paths)
+}
+
+.pls.weights <-
+function(X, IDM, blocks, modes, scheme, tol, iter)
+{
+    lvs <- nrow(IDM)
+    mvs <- ncol(X)
+    sdv <- sqrt((nrow(X)-1)/nrow(X))   # std.dev factor correction
+    blocklist <- as.list(1:lvs)
+    for (j in 1:lvs)
+         blocklist[[j]] <- rep(j,blocks[j])
+    blocklist <- unlist(blocklist)
+    # outer design matrix 'ODM' and matrix of outer weights 'W'
+    ODM <- matrix(0, mvs, lvs)
+    for (j in 1:lvs)
+        ODM[which(blocklist==j),j] <- rep(1,blocks[j])
+    W <- ODM %*% diag(1/(sd(X %*% ODM)*sdv),lvs,lvs)
+    w.old <- rowSums(W)    
+    w.dif <- 1
+    itermax <- 1
+    repeat 
+    {            
+        Y <- X %*% W  # external estimation of LVs 'Y'
+        Y <- scale(Y) * sdv
+        # matrix of inner weights 'e' 
+        E <- switch(scheme, 
+               "centroid" = sign(cor(Y) * (IDM + t(IDM))),
+               "factor" = cor(Y) * (IDM + t(IDM)),
+               "path" = .path.scheme(IDM, Y))
+        Z <- Y %*% E  # internal estimation of LVs 'Z'
+        # scaling Z
+        Z <- Z %*% diag(1/(sd(Z)*sdv), lvs, lvs)
+        # computing outer weights 'w'
+        for (j in 1:lvs)
+        {
+            X.blok = X[,which(blocklist==j)] 
+            if (modes[j]=="A")# reflective way
+                ODM[which(blocklist==j),j] <- (1/nrow(X)) * Z[,j] %*% X.blok
+            if (modes[j]=="B")# formative way
+                ODM[which(blocklist==j),j] <- solve.qr(qr(X.blok),Z[,j])
+        }
+        W <- ODM
+        w.new <- rowSums(W)                
+        w.dif <- sum((abs(w.old) - abs(w.new))^2)  # difference of out.weights 
+        if (w.dif<tol || itermax==iter) break
+        w.old <- w.new
+        itermax <- itermax + 1
+    } # end repeat       
+    W <- ODM %*% diag(1/(sd(X %*% ODM)*sdv),lvs,lvs)
+    w.new <- rowSums(W)                
+    names(w.new) <- colnames(X)
+    dimnames(W) <- list(colnames(X),rownames(IDM))       
+    res.ws <- list(w.new, W, itermax)
+    if (itermax==iter) res.ws=NULL
+    return(res.ws)
+}
+
+.plsr1 <-
+function(x, y, nc=NULL, scaled=TRUE)
+{
+    # ============ checking arguments ============
+    X <- as.matrix(x)
+    Y <- as.matrix(y)
+    n <- nrow(X)
+    p <- ncol(X)
+    if (is.null(nc))
+        nc <- p
+    # ============ setting inputs ==============
+    if (scaled) Xx<-scale(X) else Xx<-scale(X,scale=F)
+    if (scaled) Yy<-scale(Y) else Yy<-scale(Y,scale=F)
+    X.old <- Xx
+    Y.old <- Yy
+    Th <- matrix(NA, n, nc)# matrix of X-scores
+    Ph <- matrix(NA, p, nc)# matrix of X-loadings
+    Wh <- matrix(NA, p, nc)# matrix of raw-weights
+    Uh <- matrix(NA, n, nc)# matrix of Y-scores
+    ch <- rep(NA, nc)# vector of y-loadings
+    # ============ pls regression algorithm ==============
+    for (h in 1:nc)
+    {
+        w.old <- t(X.old) %*% Y.old / sum(Y.old^2)
+        w.new <- w.old / sqrt(sum(w.old^2)) # normalization
+        t.new <- X.old %*% w.new
+        p.new <- t(X.old) %*% t.new / sum(t.new^2) 
+        c.new <- t(Y.old) %*% t.new / sum(t.new^2)
+        u.new <- Y.old / as.vector(c.new)
+        Y.old <- Y.old - t.new%*%c.new# deflate y.old
+        X.old <- X.old - (t.new %*% t(p.new))# deflate X.old
+        Th[,h] <- t.new
+        Ph[,h] <- p.new
+        Wh[,h] <- w.new
+        Uh[,h] <- u.new
+        ch[h] <- c.new
+    }
+    Ws <- Wh %*% solve(t(Ph)%*%Wh)# modified weights
+    Bs <- as.vector(Ws %*% ch) # std beta coeffs    
+    Br <- Bs * (rep(sd(Y),p)/apply(X,2,sd))   # beta coeffs
+    cte <- as.vector(mean(y) - Br%*%apply(X,2,mean))# intercept
+    y.hat <- X%*%Br+cte# y predicted
+    resid <- as.vector(Y - y.hat)# residuals
+    R2 <- as.vector(cor(Th, Yy))^2  # R2 coefficients    
+    names(Br) <- colnames(X)
+    names(resid) <- rownames(Y)
+    names(y.hat) <- rownames(Y)
+    names(R2) <- paste(rep("t",nc),1:nc,sep="")
+    res <- list(coeffs=Br, coef.std=Bs, cte=cte, R2=R2[1:nc], resid=resid, y.pred=y.hat)    
+    return(res)
+}
+
+.path.scheme <-
+function(IDM, Y)
+{
+    lvs <- nrow(IDM)
+    E <- IDM
+    for (k in 1:lvs) 
+    {
+        if (length(which(IDM[k,]==1)) > 0)
+            E[which(IDM[k,]==1),k] <- lm(Y[,k]~Y[,which(IDM[k,]==1)]-1)$coef
+        if (length(which(IDM[,k]==1)) > 0)
+            E[which(IDM[,k]==1),k] <- cor(Y[,k], Y[,which(IDM[,k]==1)])
+    }                 
+    return(E)
+}
+
 .nominal.split <-
 function(v)
 {

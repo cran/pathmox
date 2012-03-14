@@ -1,11 +1,14 @@
 \name{pathmox}
 \alias{pathmox}
+\alias{fix.pathmox}
 \title{PATHMOX Algorithm}
 \description{
   PATHMOX Approach: Segmentation Trees in Partial Least Squares Path Modeling
 }
 \usage{
   pathmox(pls, EXEV, X = NULL, signif = 0.05, size = 0.1, deep = 2, tree = TRUE)
+
+  fix.pathmox(pls, EXEV, X = NULL, signif = 0.05, size = 0.1, deep = 2, tree = TRUE)
 }
 \arguments{
   \item{pls}{An object of class \code{"plspm"} returned by \code{\link{plspm}}.}
@@ -18,6 +21,7 @@
 }
 \details{
   The function \code{pathmox} calculates a binary segmentation tree following the PATHMOX algorithm. 
+  In contrast, \code{fix.pathmox} obtains a supervised PATHMOX tree in the sense of allowing the user to interactively fix the partitions along the construction process of the tree. \cr
 
   The argument \code{EXEV} must be a data frame containing segmentation variables as factors (see \code{\link{factor}}). The number of rows in \code{EXEV} must be the same as the number of rows in the data used in \code{pls}. \cr
 
@@ -38,7 +42,7 @@
 \author{
   Gaston Sanchez
 }
-\seealso{\code{\link{techmox}}, \code{\link{plot.treemox}}, \code{\link{treemox.pls}}, \code{\link{plspmox}}.}
+\seealso{\code{\link{techmox}}, \code{\link{plot.treemox}}, \code{\link{treemox.pls}}.}
 \examples{
   \dontrun{
   ## example of PLS-PM in customer satisfaction analysis

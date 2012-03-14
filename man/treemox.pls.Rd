@@ -26,7 +26,7 @@
 \author{
   Gaston Sanchez
 }
-\seealso{\code{\link{pathmox}}, \code{\link{techmox}}, \code{\link{plot.treemox.pls}}, \code{\link{plspmox}}.}
+\seealso{\code{\link{pathmox}}, \code{\link{techmox}}, \code{\link{plot.treemox}}.}
 \examples{
   \dontrun{
   ## example of PLS-PM in customer satisfaction analysis
