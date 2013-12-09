@@ -5,7 +5,9 @@
 \description{
   This table contains data from a Customer Satisfaction Index CSI on Mobile Phone
 }
-\usage{data(csimobile)}
+\usage{
+data(csimobile)
+}
 \format{
   A data frame with 87 observations on 33 variables. The first seven variables are segmentation variables. The rest of the variables refer to seven latent concepts: 1) \code{IMAG}=Image, 2) \code{EXPE}=Expectations, 3) \code{QUAL}=Quality, 4) \code{VAL}=Value, 5) \code{SAT}=Satisfaction, 6) \code{COM}=Complaints, and 7) \code{LOY}=Loyalty. 
 

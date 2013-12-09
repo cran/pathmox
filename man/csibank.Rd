@@ -5,7 +5,9 @@
 \description{
   This data set contains the variables from a customer satisfaction study of a Spanish credit institution.
 }
-\usage{data(csibank)}
+\usage{
+data(csibank)
+}
 \format{
   A data frame with 1707 observations on the following 32 variables. The first five variables are segmentation variables. The rest of the variables refer to seven latent concepts: 1) \code{IMAG}=Image, 2) \code{EXPE}=Expectations, 3) \code{QUAL}=Quality, 4) \code{VAL}=Value, 5) \code{SAT}=Satisfaction, and 6) \code{LOY}=Loyalty. 
 

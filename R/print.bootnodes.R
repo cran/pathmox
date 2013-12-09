@@ -1,3 +1,4 @@
+#'@S3method print bootnodes
 print.bootnodes <-
 function(x, ...)
 {
